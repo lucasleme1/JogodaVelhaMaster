@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BioFlix Pro - Busca & Multiplayer</title>
+    <title>BioFlix Pro - v9</title>
     <style>
-        :root { --main-red: #e50914; --dark-bg: #0a0a0a; }
-        body { background-color: var(--dark-bg); color: white; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
+        :root { --main-red: #e50914; --dark-bg: #060606; }
+        body { background: var(--dark-bg); color: white; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; }
 
         header {
             padding: 15px 5%; background: #000; position: fixed; width: 100%; z-index: 1000;
@@ -15,128 +15,128 @@
         }
         .logo { color: var(--main-red); font-size: 1.4rem; font-weight: bold; text-decoration: none; }
         
-        .search-container { background: #222; border-radius: 20px; padding: 5px 15px; display: flex; align-items: center; }
-        .search-container input { background: transparent; border: none; color: white; outline: none; width: 120px; font-size: 0.9rem; }
+        .search-bar { background: #222; border-radius: 20px; padding: 5px 15px; display: flex; }
+        .search-bar input { background: transparent; border: none; color: white; outline: none; width: 100px; }
 
-        .nav { display: flex; gap: 15px; }
-        .nav span { cursor: pointer; color: #ccc; font-weight: bold; font-size: 0.9rem; }
-        .nav span:hover { color: white; }
+        .nav-tabs { display: flex; gap: 15px; }
+        .nav-tabs span { cursor: pointer; color: #ccc; font-weight: bold; font-size: 0.85rem; }
 
-        .container { padding: 100px 5% 40px; }
-        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
-        .card { cursor: pointer; position: relative; transition: 0.3s; border-radius: 8px; overflow: hidden; }
-        .card:hover { transform: scale(1.05); border: 2px solid var(--main-red); }
-        .card img { width: 100%; display: block; }
-        .badge { position: absolute; top: 5px; right: 5px; background: var(--main-red); font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
+        .content { padding: 90px 5% 40px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        .movie-card { cursor: pointer; position: relative; transition: 0.3s; border-radius: 8px; overflow: hidden; border: 1px solid #222; }
+        .movie-card:hover { transform: scale(1.05); border-color: var(--main-red); }
+        .movie-card img { width: 100%; display: block; }
 
         /* PLAYER MULTIPLAYER */
-        #modal { position: fixed; inset: 0; background: #000; display: none; z-index: 2000; flex-direction: column; }
-        .p-header { padding: 10px 5%; background: #111; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .server-list { display: flex; gap: 10px; }
-        .btn-srv { background: #333; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-        .btn-srv.active { background: var(--main-red); }
+        #modal-player { position: fixed; inset: 0; background: #000; display: none; z-index: 2000; flex-direction: column; }
+        .p-controls { padding: 10px; background: #111; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .srv-btns { display: flex; gap: 5px; }
+        .srv-btns button { background: #333; color: white; border: none; padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+        .srv-btns button.active { background: var(--main-red); }
         
-        iframe { width: 100%; flex-grow: 1; border: none; background: #000; }
-        .btn-close { background: #fff; color: #000; border: none; padding: 6px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .video-box { flex-grow: 1; background: #000; display: flex; align-items: center; justify-content: center; }
+        iframe { width: 100%; height: 100%; border: none; }
+        .close-x { background: white; color: black; border: none; padding: 5px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
 
-        @media (max-width: 600px) {
-            .movie-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-            .search-container input { width: 80px; }
-        }
+        @media (max-width: 600px) { .grid { grid-template-columns: repeat(3, 1fr); gap: 10px; } }
     </style>
 </head>
 <body>
 
 <header>
     <a href="#" class="logo" onclick="location.reload()">BIOFLIX</a>
-    <div class="search-container">
-        <input type="text" id="busca" placeholder="Buscar..." onkeyup="buscar(this.value)">
-    </div>
-    <div class="nav">
-        <span onclick="mudar('movie')">FILMES</span>
-        <span onclick="mudar('tv')">SÉRIES</span>
+    <div class="search-bar"><input type="text" id="q" placeholder="Buscar..." onkeyup="doSearch(this.value)"></div>
+    <div class="nav-tabs">
+        <span onclick="setType('movie')">FILMES</span>
+        <span onclick="setType('tv')">SÉRIES</span>
     </div>
 </header>
 
-<div class="container">
-    <h2 id="grid-title">Carregando...</h2>
-    <div class="movie-grid" id="grid"></div>
+<div class="content">
+    <h2 id="g-title">Destaques</h2>
+    <div class="grid" id="main-grid"></div>
 </div>
 
-<div id="modal">
-    <div class="p-header">
-        <div class="server-list">
-            <button class="btn-srv active" onclick="setSrv(1)">SERVIDOR 1 (Dub)</button>
-            <button class="btn-srv" onclick="setSrv(2)">SERVIDOR 2 (Séries)</button>
-            <button class="btn-srv" onclick="setSrv(3)">SERVIDOR 3 (Extra)</button>
+<div id="modal-player">
+    <div class="p-controls">
+        <div class="srv-btns">
+            <button id="b1" onclick="changeSrv(1)">OPÇÃO 1 (Principal)</button>
+            <button id="b2" onclick="changeSrv(2)">OPÇÃO 2 (Backup)</button>
+            <button id="b3" onclick="changeSrv(3)">OPÇÃO 3 (Nativo)</button>
         </div>
-        <button class="btn-close" onclick="fechar()">FECHAR X</button>
+        <button class="close-x" onclick="closePlayer()">FECHAR</button>
     </div>
-    <iframe id="player" allowfullscreen></iframe>
+    <div class="video-box">
+        <iframe id="ifr" allowfullscreen allow="autoplay"></iframe>
+    </div>
 </div>
 
 <script>
     const API_KEY = '17df6160aca3d40e104b25638686a191';
-    let tipoAtual = 'movie';
-    let idAtual = '';
+    let currentT = 'movie';
+    let currentMId = '';
 
-    async function carregar() {
-        const res = await fetch(`https://api.themoviedb.org/3/trending/${tipoAtual}/week?api_key=${API_KEY}&language=pt-BR`);
-        const data = await res.json();
-        document.getElementById('grid-title').innerText = tipoAtual === 'movie' ? 'Filmes Populares' : 'Séries Populares';
-        render(data.results);
+    async function loadData() {
+        const r = await fetch(`https://api.themoviedb.org/3/trending/${currentT}/week?api_key=${API_KEY}&language=pt-BR`);
+        const d = await r.json();
+        document.getElementById('g-title').innerText = currentT === 'movie' ? 'Filmes Populares' : 'Séries Populares';
+        render(d.results);
     }
 
-    async function buscar(q) {
-        if(q.length < 3) { if(q.length === 0) carregar(); return; }
-        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(q)}&language=pt-BR`);
-        const data = await res.json();
-        render(data.results);
+    async function doSearch(val) {
+        if(val.length < 3) { if(val.length === 0) loadData(); return; }
+        const r = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(val)}&language=pt-BR`);
+        const d = await r.json();
+        render(d.results);
     }
 
-    function render(lista) {
-        const grid = document.getElementById('grid');
-        grid.innerHTML = "";
-        lista.forEach(m => {
+    function render(list) {
+        const g = document.getElementById('main-grid');
+        g.innerHTML = "";
+        list.forEach(m => {
             if(!m.poster_path) return;
-            const t = m.media_type || tipoAtual;
-            const div = document.createElement('div');
-            div.className = 'card';
-            div.innerHTML = `<img src="https://image.tmdb.org/t/p/w500${m.poster_path}"><div class="badge">${t === 'tv' ? 'SÉRIE' : 'FILME'}</div>`;
-            div.onclick = () => abrir(m.id, t);
-            grid.appendChild(div);
+            const t = m.media_type || currentT;
+            const d = document.createElement('div');
+            d.className = 'movie-card';
+            d.innerHTML = `<img src="https://image.tmdb.org/t/p/w500${m.poster_path}">`;
+            d.onclick = () => openPlayer(m.id, t);
+            g.appendChild(d);
         });
     }
 
-    function abrir(id, t) {
-        idAtual = id;
-        tipoAtual = t;
-        document.getElementById('modal').style.display = 'flex';
-        setSrv(1);
+    function openPlayer(id, type) {
+        currentMId = id;
+        currentT = type;
+        document.getElementById('modal-player').style.display = 'flex';
+        changeSrv(1);
         document.body.style.overflow = 'hidden';
     }
 
-    function setSrv(n) {
-        const frame = document.getElementById('player');
-        const btns = document.querySelectorAll('.btn-srv');
-        btns.forEach((b, i) => b.classList.toggle('active', i === n-1));
+    function changeSrv(n) {
+        const f = document.getElementById('ifr');
+        document.querySelectorAll('.srv-btns button').forEach((b, i) => b.classList.toggle('active', i === n-1));
 
-        const urls = {
-            1: `https://superembed.org/embed?tmdb=${idAtual}&type=${tipoAtual === 'tv' ? 'tv' : 'movie'}`,
-            2: `https://vidsrc.pro/embed/${tipoAtual}/${idAtual}`,
-            3: `https://embed.su/embed/${tipoAtual}/${idAtual}`
+        // URLs de agregadores que funcionam melhor em 2026 para BR
+        const sources = {
+            1: `https://autoembed.to/tv/tmdb/${currentMId}?server=1`, 
+            2: `https://multiembed.mov/directstream.php?video_id=${currentMId}&tmdb=1`,
+            3: `https://vidsrc.me/embed/${currentT === 'tv' ? 'tv' : 'movie'}?tmdb=${currentMId}`
         };
-        frame.src = urls[n];
+
+        // Ajuste específico para Filmes na Opção 1
+        if(currentT === 'movie' && n === 1) sources[1] = `https://autoembed.to/movie/tmdb/${currentMId}?server=1`;
+
+        f.src = sources[n];
     }
 
-    function fechar() {
-        document.getElementById('modal').style.display = 'none';
-        document.getElementById('player').src = "";
+    function closePlayer() {
+        document.getElementById('modal-player').style.display = 'none';
+        document.getElementById('ifr').src = "";
         document.body.style.overflow = 'auto';
     }
 
-    function mudar(t) { tipoAtual = t; carregar(); }
-    carregar();
+    function setType(t) { currentT = t; loadData(); }
+    loadData();
 </script>
 
 </body>
