@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BioFlix Dublados</title>
+    <title>BioFlix Pro - Busca & Multiplayer</title>
     <style>
         :root { --main-red: #e50914; --dark-bg: #0a0a0a; }
         body { background-color: var(--dark-bg); color: white; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
@@ -13,30 +13,45 @@
             display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;
             border-bottom: 2px solid var(--main-red);
         }
-        .logo { color: var(--main-red); font-size: 1.5rem; font-weight: bold; text-decoration: none; }
-        .nav span { margin-left: 20px; cursor: pointer; color: #ccc; font-weight: bold; }
+        .logo { color: var(--main-red); font-size: 1.4rem; font-weight: bold; text-decoration: none; }
+        
+        .search-container { background: #222; border-radius: 20px; padding: 5px 15px; display: flex; align-items: center; }
+        .search-container input { background: transparent; border: none; color: white; outline: none; width: 120px; font-size: 0.9rem; }
+
+        .nav { display: flex; gap: 15px; }
+        .nav span { cursor: pointer; color: #ccc; font-weight: bold; font-size: 0.9rem; }
         .nav span:hover { color: white; }
 
-        .container { padding: 90px 5% 40px; }
+        .container { padding: 100px 5% 40px; }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
-        .card { cursor: pointer; position: relative; transition: 0.3s; }
-        .card:hover { transform: scale(1.05); border: 1px solid var(--main-red); border-radius: 5px; }
-        .card img { width: 100%; border-radius: 5px; }
-        .badge { position: absolute; top: 5px; right: 5px; background: var(--main-red); font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; }
+        .card { cursor: pointer; position: relative; transition: 0.3s; border-radius: 8px; overflow: hidden; }
+        .card:hover { transform: scale(1.05); border: 2px solid var(--main-red); }
+        .card img { width: 100%; display: block; }
+        .badge { position: absolute; top: 5px; right: 5px; background: var(--main-red); font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
 
-        /* PLAYER MODAL */
+        /* PLAYER MULTIPLAYER */
         #modal { position: fixed; inset: 0; background: #000; display: none; z-index: 2000; flex-direction: column; }
-        .p-header { padding: 10px; background: #111; display: flex; justify-content: space-between; align-items: center; }
-        iframe { width: 100%; flex-grow: 1; border: none; }
-        .btn-close { background: var(--main-red); color: white; border: none; padding: 5px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .p-header { padding: 10px 5%; background: #111; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .server-list { display: flex; gap: 10px; }
+        .btn-srv { background: #333; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .btn-srv.active { background: var(--main-red); }
+        
+        iframe { width: 100%; flex-grow: 1; border: none; background: #000; }
+        .btn-close { background: #fff; color: #000; border: none; padding: 6px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
 
-        @media (max-width: 600px) { .movie-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; } }
+        @media (max-width: 600px) {
+            .movie-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .search-container input { width: 80px; }
+        }
     </style>
 </head>
 <body>
 
 <header>
-    <a href="#" class="logo">BIOFLIX</a>
+    <a href="#" class="logo" onclick="location.reload()">BIOFLIX</a>
+    <div class="search-container">
+        <input type="text" id="busca" placeholder="Buscar..." onkeyup="buscar(this.value)">
+    </div>
     <div class="nav">
         <span onclick="mudar('movie')">FILMES</span>
         <span onclick="mudar('tv')">SÉRIES</span>
@@ -50,46 +65,73 @@
 
 <div id="modal">
     <div class="p-header">
-        <span style="color: #f1c40f; font-size: 0.8rem;">DICA: No player, procure por 'Dub' ou ícone de engrenagem.</span>
+        <div class="server-list">
+            <button class="btn-srv active" onclick="setSrv(1)">SERVIDOR 1 (Dub)</button>
+            <button class="btn-srv" onclick="setSrv(2)">SERVIDOR 2 (Séries)</button>
+            <button class="btn-srv" onclick="setSrv(3)">SERVIDOR 3 (Extra)</button>
+        </div>
         <button class="btn-close" onclick="fechar()">FECHAR X</button>
     </div>
-    <iframe id="player-frame" allowfullscreen allow="autoplay"></iframe>
+    <iframe id="player" allowfullscreen></iframe>
 </div>
 
 <script>
     const API_KEY = '17df6160aca3d40e104b25638686a191';
     let tipoAtual = 'movie';
+    let idAtual = '';
 
     async function carregar() {
         const res = await fetch(`https://api.themoviedb.org/3/trending/${tipoAtual}/week?api_key=${API_KEY}&language=pt-BR`);
         const data = await res.json();
         document.getElementById('grid-title').innerText = tipoAtual === 'movie' ? 'Filmes Populares' : 'Séries Populares';
+        render(data.results);
+    }
+
+    async function buscar(q) {
+        if(q.length < 3) { if(q.length === 0) carregar(); return; }
+        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(q)}&language=pt-BR`);
+        const data = await res.json();
+        render(data.results);
+    }
+
+    function render(lista) {
         const grid = document.getElementById('grid');
         grid.innerHTML = "";
-        data.results.forEach(m => {
+        lista.forEach(m => {
             if(!m.poster_path) return;
+            const t = m.media_type || tipoAtual;
             const div = document.createElement('div');
             div.className = 'card';
-            div.innerHTML = `<img src="https://image.tmdb.org/t/p/w500${m.poster_path}"><div class="badge">${tipoAtual.toUpperCase()} DUBLADO</div>`;
-            div.onclick = () => abrir(m.id);
+            div.innerHTML = `<img src="https://image.tmdb.org/t/p/w500${m.poster_path}"><div class="badge">${t === 'tv' ? 'SÉRIE' : 'FILME'}</div>`;
+            div.onclick = () => abrir(m.id, t);
             grid.appendChild(div);
         });
     }
 
-    function abrir(id) {
-        const frame = document.getElementById('player-frame');
-        // ESTE PLAYER É FOCADO EM CONTEÚDO PT-BR
-        // Ele possui um seletor de temporadas automático para séries.
-        const url = `https://superembed.org/embed?tmdb=${id}&type=${tipoAtual === 'tv' ? 'tv' : 'movie'}`;
-        
-        frame.src = url;
+    function abrir(id, t) {
+        idAtual = id;
+        tipoAtual = t;
         document.getElementById('modal').style.display = 'flex';
+        setSrv(1);
         document.body.style.overflow = 'hidden';
+    }
+
+    function setSrv(n) {
+        const frame = document.getElementById('player');
+        const btns = document.querySelectorAll('.btn-srv');
+        btns.forEach((b, i) => b.classList.toggle('active', i === n-1));
+
+        const urls = {
+            1: `https://superembed.org/embed?tmdb=${idAtual}&type=${tipoAtual === 'tv' ? 'tv' : 'movie'}`,
+            2: `https://vidsrc.pro/embed/${tipoAtual}/${idAtual}`,
+            3: `https://embed.su/embed/${tipoAtual}/${idAtual}`
+        };
+        frame.src = urls[n];
     }
 
     function fechar() {
         document.getElementById('modal').style.display = 'none';
-        document.getElementById('player-frame').src = "";
+        document.getElementById('player').src = "";
         document.body.style.overflow = 'auto';
     }
 
