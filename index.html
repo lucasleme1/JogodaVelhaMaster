@@ -2,171 +2,100 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tic-Tac-Toe Master Neon</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioFlix Dublados</title>
     <style>
-        /* Estilo Dark e Moderno */
-        body { 
-            background: radial-gradient(circle, #1a1a2e 0%, #0f0f1a 100%);
-            color: white; 
-            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            margin: 0; 
-        }
+        :root { --main-red: #e50914; --dark-bg: #0a0a0a; }
+        body { background-color: var(--dark-bg); color: white; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
 
-        /* Tela de Seleção Estilizada */
-        #tela-selecao { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(15, 15, 26, 0.98); 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            z-index: 100; 
+        header {
+            padding: 15px 5%; background: #000; position: fixed; width: 100%; z-index: 1000;
+            display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;
+            border-bottom: 2px solid var(--main-red);
         }
-        .btn-escolha { 
-            width: 80%; padding: 22px; margin: 12px; border-radius: 20px; 
-            border: none; font-size: 1.3rem; font-weight: 800; cursor: pointer;
-            transition: 0.3s; box-shadow: 0 0 15px rgba(0,0,0,0.5);
-        }
-        .btn-ele { background: #ff9f0a; color: white; box-shadow: 0 0 20px rgba(255, 159, 10, 0.4); }
-        .btn-ela { background: #00ff88; color: #0f0f1a; box-shadow: 0 0 20px rgba(0, 255, 136, 0.4); }
+        .logo { color: var(--main-red); font-size: 1.5rem; font-weight: bold; text-decoration: none; }
+        .nav span { margin-left: 20px; cursor: pointer; color: #ccc; font-weight: bold; }
+        .nav span:hover { color: white; }
 
-        /* Placar Neon */
-        .placar { 
-            display: flex; justify-content: space-around; width: 90%; 
-            margin-bottom: 25px; background: rgba(255, 255, 255, 0.05); 
-            padding: 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-        }
-        .pontos { text-align: center; }
-        .pontos span { display: block; font-size: 0.7rem; color: #888; letter-spacing: 2px; margin-bottom: 5px; }
-        .pontos b { font-size: 2.5rem; display: block; text-shadow: 0 0 10px currentColor; }
-        #pontoEle { color: #ff9f0a; }
-        #pontoEla { color: #00ff88; }
+        .container { padding: 90px 5% 40px; }
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        .card { cursor: pointer; position: relative; transition: 0.3s; }
+        .card:hover { transform: scale(1.05); border: 1px solid var(--main-red); border-radius: 5px; }
+        .card img { width: 100%; border-radius: 5px; }
+        .badge { position: absolute; top: 5px; right: 5px; background: var(--main-red); font-size: 0.6rem; padding: 2px 5px; border-radius: 3px; }
 
-        .status { 
-            margin-bottom: 20px; height: 20px; color: #ff9f0a; 
-            font-family: monospace; font-weight: bold; text-transform: uppercase;
-            letter-spacing: 1px; text-shadow: 0 0 5px #ff9f0a;
-        }
+        /* PLAYER MODAL */
+        #modal { position: fixed; inset: 0; background: #000; display: none; z-index: 2000; flex-direction: column; }
+        .p-header { padding: 10px; background: #111; display: flex; justify-content: space-between; align-items: center; }
+        iframe { width: 100%; flex-grow: 1; border: none; }
+        .btn-close { background: var(--main-red); color: white; border: none; padding: 5px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; }
 
-        /* Tabuleiro Master */
-        .board { display: grid; grid-template-columns: repeat(3, 95px); gap: 15px; }
-        .cell { 
-            width: 95px; height: 95px; background: rgba(255, 255, 255, 0.03); 
-            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px; 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 3rem; font-weight: 900; cursor: pointer;
-            transition: 0.2s;
-        }
-        .cell:active { transform: scale(0.9); }
-        .cell.x { color: #ff9f0a; text-shadow: 0 0 15px #ff9f0a; }
-        .cell.o { color: #00ff88; text-shadow: 0 0 15px #00ff88; }
-
-        /* Botões de Controle */
-        .controls { display: flex; gap: 15px; margin-top: 35px; width: 90%; }
-        button.action { 
-            flex: 1; padding: 15px; border-radius: 15px; border: none; 
-            font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: 0.3s;
-        }
-        .btn-reset { background: #ff9f0a; color: white; }
-        .btn-clear { background: rgba(255,255,255,0.1); color: #ccc; }
+        @media (max-width: 600px) { .movie-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; } }
     </style>
 </head>
 <body>
 
-    <div id="tela-selecao">
-        <h1 style="margin-bottom: 30px; letter-spacing: 3px;">MASTER EDITION</h1>
-        <button class="btn-escolha btn-ele" onclick="selecionarJogador('X')">SOU ELE (X)</button>
-        <button class="btn-escolha btn-ela" onclick="selecionarJogador('O')">SOU ELA (O)</button>
-        <p style="color: #555; margin-top: 20px;">Cada um deve escolher um lado</p>
+<header>
+    <a href="#" class="logo">BIOFLIX</a>
+    <div class="nav">
+        <span onclick="mudar('movie')">FILMES</span>
+        <span onclick="mudar('tv')">SÉRIES</span>
     </div>
+</header>
 
-    <div class="placar">
-        <div class="pontos"><span>ELE</span><b id="pontoEle">0</b></div>
-        <div style="font-size: 1.2rem; color: #333; align-self: center; font-weight: 900;">VS</div>
-        <div class="pontos"><span>ELA</span><b id="pontoEla">0</b></div>
+<div class="container">
+    <h2 id="grid-title">Carregando...</h2>
+    <div class="movie-grid" id="grid"></div>
+</div>
+
+<div id="modal">
+    <div class="p-header">
+        <span style="color: #f1c40f; font-size: 0.8rem;">DICA: No player, procure por 'Dub' ou ícone de engrenagem.</span>
+        <button class="btn-close" onclick="fechar()">FECHAR X</button>
     </div>
+    <iframe id="player-frame" allowfullscreen allow="autoplay"></iframe>
+</div>
 
-    <div class="status" id="status">Aguardando...</div>
+<script>
+    const API_KEY = '17df6160aca3d40e104b25638686a191';
+    let tipoAtual = 'movie';
 
-    <div class="board" id="board">
-        <div class="cell" onclick="jogar(0)"></div>
-        <div class="cell" onclick="jogar(1)"></div>
-        <div class="cell" onclick="jogar(2)"></div>
-        <div class="cell" onclick="jogar(3)"></div>
-        <div class="cell" onclick="jogar(4)"></div>
-        <div class="cell" onclick="jogar(5)"></div>
-        <div class="cell" onclick="jogar(6)"></div>
-        <div class="cell" onclick="jogar(7)"></div>
-        <div class="cell" onclick="jogar(8)"></div>
-    </div>
-
-    <div class="controls">
-        <button class="action btn-reset" onclick="novoJogo()">PRÓXIMO ROUND</button>
-        <button class="action btn-clear" onclick="zerarTudo()">REINICIAR TUDO</button>
-    </div>
-
-    <script>
-        const firebaseConfig = { databaseURL: "https://project-a3660c8f-d710-41a4-a09-default-rtdb.firebaseio.com/" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database().ref("partida_v3_neon");
-
-        let meuSimbolo = "";
-        let celulas = document.querySelectorAll('.cell');
-
-        function selecionarJogador(s) {
-            meuSimbolo = s;
-            document.getElementById('tela-selecao').style.fadeOut = "0.5s";
-            setTimeout(() => document.getElementById('tela-selecao').style.display = 'none', 300);
-        }
-
-        db.on('value', (s) => {
-            const data = s.val() || { tabuleiro: ["","","","","","","","",""], vez: "X", ele: 0, ela: 0, fim: false };
-            data.tabuleiro.forEach((v, i) => {
-                celulas[i].innerText = v;
-                celulas[i].className = "cell " + (v ? v.toLowerCase() : "");
-            });
-            document.getElementById('pontoEle').innerText = data.ele;
-            document.getElementById('pontoEla').innerText = data.ela;
-            if (data.fim) {
-                const win = checarVitoria(data.tabuleiro);
-                statusEl(win ? "VITÓRIA DE " + (win === "X" ? "ELE!" : "ELA!") : "EMPATE!");
-            } else {
-                statusEl(data.vez === meuSimbolo ? "SUA VEZ" : "ESPERE...");
-            }
+    async function carregar() {
+        const res = await fetch(`https://api.themoviedb.org/3/trending/${tipoAtual}/week?api_key=${API_KEY}&language=pt-BR`);
+        const data = await res.json();
+        document.getElementById('grid-title').innerText = tipoAtual === 'movie' ? 'Filmes Populares' : 'Séries Populares';
+        const grid = document.getElementById('grid');
+        grid.innerHTML = "";
+        data.results.forEach(m => {
+            if(!m.poster_path) return;
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `<img src="https://image.tmdb.org/t/p/w500${m.poster_path}"><div class="badge">${tipoAtual.toUpperCase()} DUBLADO</div>`;
+            div.onclick = () => abrir(m.id);
+            grid.appendChild(div);
         });
+    }
 
-        function jogar(i) {
-            if (meuSimbolo === "") return;
-            db.once('value', (s) => {
-                let data = s.val() || { tabuleiro: ["","","","","","","","",""], vez: "X", ele: 0, ela: 0, fim: false };
-                if (!data.fim && data.tabuleiro[i] === "" && data.vez === meuSimbolo) {
-                    data.tabuleiro[i] = meuSimbolo;
-                    data.vez = (meuSimbolo === "X") ? "O" : "X";
-                    const win = checarVitoria(data.tabuleiro);
-                    if (win) {
-                        data.fim = true;
-                        if (win === "X") data.ele++; else data.ela++;
-                    } else if (!data.tabuleiro.includes("")) data.fim = true;
-                    db.set(data);
-                }
-            });
-        }
+    function abrir(id) {
+        const frame = document.getElementById('player-frame');
+        // ESTE PLAYER É FOCADO EM CONTEÚDO PT-BR
+        // Ele possui um seletor de temporadas automático para séries.
+        const url = `https://superembed.org/embed?tmdb=${id}&type=${tipoAtual === 'tv' ? 'tv' : 'movie'}`;
+        
+        frame.src = url;
+        document.getElementById('modal').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
 
-        function checarVitoria(t) {
-            const combos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-            for (let c of combos) if (t[c[0]] && t[c[0]] === t[c[1]] && t[c[1]] === t[c[2]]) return t[c[0]];
-            return null;
-        }
+    function fechar() {
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('player-frame').src = "";
+        document.body.style.overflow = 'auto';
+    }
 
-        function novoJogo() { db.update({ tabuleiro: ["","","","","","","","",""], vez: "X", fim: false }); }
-        function zerarTudo() { db.set({ tabuleiro: ["","","","","","","","",""], vez: "X", ele: 0, ela: 0, fim: false }); }
-        function statusEl(t) { document.getElementById('status').innerText = t; }
-    </script>
+    function mudar(t) { tipoAtual = t; carregar(); }
+    carregar();
+</script>
+
 </body>
 </html>
