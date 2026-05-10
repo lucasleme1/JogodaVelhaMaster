@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jogo da Velha Master - Placar</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { background-color: #121212; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        
+        /* Estilo do Placar */
+        .placar { display: flex; justify-content: space-around; width: 90%; margin-bottom: 15px; background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .pontos { text-align: center; }
+        .pontos span { display: block; font-size: 0.8rem; color: #aaa; text-transform: uppercase; }
+        .pontos b { font-size: 2rem; color: #00ff88; }
+        .vs { font-size: 1.5rem; align-self: center; color: #444; }
+
+        .status { margin-bottom: 15px; padding: 8px; border-radius: 10px; color: #ff9f0a; font-family: monospace; font-size: 0.9rem; }
+        
+        .board { display: grid; grid-template-columns: repeat(3, 90px); gap: 10px; }
+        .cell { width: 90px; height: 90px; background: #222; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; box-shadow: 0 5px 0 #000; transition: 0.1s; }
+        .cell.x { color: #ff9f0a; }
+        .cell.o { color: #00ff88; }
+        
+        .controls { display: flex; gap: 10px; margin-top: 20px; }
+        button { padding: 12px 20px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-reset { background: #ff9f0a; color: white; }
+        .btn-clear { background: #444; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="placar">
+        <div class="pontos">
+            <span>Ele (X)</span>
+            <b id="pontoEle">0</b>
+        </div>
+        <div class="vs">VS</div>
+        <div class="pontos">
+            <span>Ela (O)</span>
+            <b id="pontoEla">0</b>
+        </div>
+    </div>
+
+    <div class="status" id="status">Conectando...</div>
+
+    <div class="board" id="board">
+        <div class="cell" onclick="jogar(0)"></div>
+        <div class="cell" onclick="jogar(1)"></div>
+        <div class="cell" onclick="jogar(2)"></div>
+        <div class="cell" onclick="jogar(3)"></div>
+        <div class="cell" onclick="jogar(4)"></div>
+        <div class="cell" onclick="jogar(5)"></div>
+        <div class="cell" onclick="jogar(6)"></div>
+        <div class="cell" onclick="jogar(7)"></div>
+        <div class="cell" onclick="jogar(8)"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-reset" onclick="novoJogo()">Novo Jogo</button>
+        <button class="btn-clear" onclick="zerarPlacar()">Zerar Placar</button>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://project-a3660c8f-d710-41a4-a09-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database().ref("partida_master");
+
+        let meuSimbolo = "";
+        let celulas = document.querySelectorAll('.cell');
+        let jogoAtivo = true;
+
+        // Escuta o Firebase
+        db.on('value', (snapshot) => {
+            const data = snapshot.val() || { 
+                tabuleiro: ["","","","","","","","",""], 
+                vez: "X", 
+                vitoriasEle: 0, 
+                vitoriasEla: 0,
+                finalizado: false
+            };
+            
+            // Atualiza Tabuleiro
+            data.tabuleiro.forEach((v, i) => {
+                celulas[i].innerText = v;
+                celulas[i].className = "cell " + (v ? v.toLowerCase() : "");
+            });
+
+            // Atualiza Placar
+            document.getElementById('pontoEle').innerText = data.vitoriasEle;
+            document.getElementById('pontoEla').innerText = data.vitoriasEla;
+            jogoAtivo = !data.finalizado;
+
+            if(!data.finalizado) {
+                statusEl(data.vez === meuSimbolo ? "Sua vez!" : "Vez do oponente...");
+            }
+            
+            verificarVencedorLocal(data);
+        });
+
+        function jogar(i) {
+            if(!jogoAtivo) return;
+            db.once('value', (s) => {
+                let data = s.val() || { tabuleiro: ["","","","","","","","",""], vez: "X", vitoriasEle: 0, vitoriasEla: 0 };
+                if (data.tabuleiro[i] === "") {
+                    if (meuSimbolo === "") meuSimbolo = data.tabuleiro.includes("X") ? "O" : "X";
+                    if (data.vez === meuSimbolo) {
+                        data.tabuleiro[i] = meuSimbolo;
+                        data.vez = (meuSimbolo === "X") ? "O" : "X";
+                        
+                        // Checa vitória antes de enviar
+                        const win = checarWin(data.tabuleiro);
+                        if(win) {
+                            data.finalizado = true;
+                            if(win === "X") data.vitoriasEle++;
+                            else data.vitoriasEla++;
+                        }
+                        db.set(data);
+                    }
+                }
+            });
+        }
+
+        function checarWin(t) {
+            const c = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            for (let combo of c) {
+                if (t[combo[0]] && t[combo[0]] === t[combo[1]] && t[combo[1]] === t[combo[2]]) return t[combo[0]];
+            }
+            return null;
+        }
+
+        function novoJogo() {
+            db.once('value', (s) => {
+                let data = s.val();
+                db.update({ tabuleiro: ["","","","","","","","",""], vez: "X", finalizado: false });
+                meuSimbolo = "";
+            });
+        }
+
+        function zerarPlacar() {
+            db.update({ vitoriasEle: 0, vitoriasEla: 0 });
+            novoJogo();
+        }
+
+        function statusEl(t) { document.getElementById('status').innerText = t; }
+
+        function verificarVencedorLocal(data) {
+            const win = checarWin(data.tabuleiro);
+            if(win) statusEl("VENCEDOR: " + (win === "X" ? "ELE" : "ELA"));
+        }
+    </script>
+</body>
+</html>
